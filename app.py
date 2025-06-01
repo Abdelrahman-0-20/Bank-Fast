@@ -7,7 +7,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from io import BytesIO
 from datetime import datetime, timedelta
-import scipy.stats as stats
 import warnings
 warnings.filterwarnings('ignore')
 
