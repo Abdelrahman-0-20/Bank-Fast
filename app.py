@@ -10,89 +10,26 @@ from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
-# Set page config with expanded features
+# Page configuration – no emoji, clean design
 st.set_page_config(
-    page_title="Advanced Bank Customer Dashboard",
-    page_icon="🏦",
+    page_title="Bank Customer Analytics",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
         'Get Help': 'https://www.example.com/help',
         'Report a bug': "https://www.example.com/bug",
-        'About': "# Advanced Banking Analytics Dashboard"
+        'About': "Bank Customer Analytics Dashboard"
     }
 )
 
-# Custom CSS for enhanced styling
-st.markdown("""
-<style>
-    .main {
-        background-color: #f8f9fa;
-    }
-    .stButton>button {
-        background-color: #4CAF50;
-        color: white;
-        border-radius: 5px;
-        border: none;
-        padding: 8px 16px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 14px;
-        margin: 4px 2px;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-    .stButton>button:hover {
-        background-color: #45a049;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
-    .metric-card {
-        background-color: white;
-        border-radius: 10px;
-        padding: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-    }
-    .metric-title {
-        font-size: 14px;
-        color: #666;
-        margin-bottom: 5px;
-    }
-    .metric-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #333;
-    }
-    .metric-change {
-        font-size: 12px;
-        color: #4CAF50;
-    }
-    .metric-change.negative {
-        color: #f44336;
-    }
-    .tab-content {
-        padding: 20px;
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        margin-top: 20px;
-    }
-    .footer {
-        font-size: 12px;
-        color: #777;
-        text-align: center;
-        margin-top: 20px;
-        padding-top: 10px;
-        border-top: 1px solid #eee;
-    }
-</style>
-""", unsafe_allow_html=True)
+# ----
+# Data generation and loading
+# ----
 
-# Generate sample bank data function
 @st.cache_data
 def generate_sample_data(n_samples=5000):
-    """Generate realistic sample bank customer data"""
+    """Generate realistic sample bank customer data."""
     np.random.seed(42)
     
     # Demographics
@@ -115,16 +52,13 @@ def generate_sample_data(n_samples=5000):
     balances = np.random.lognormal(8, 1.5, n_samples)
     balances = np.clip(balances, 0, 200000)
     
-    # Call duration (seconds)
     durations = np.random.exponential(180, n_samples).astype(int)
     durations = np.clip(durations, 30, 1200)
     
-    # Loan status
     loan_probs = np.where(balances > 10000, 0.3, 0.1)
     loans = np.random.binomial(1, loan_probs, n_samples)
     loan_status = ['yes' if x else 'no' for x in loans]
     
-    # Create DataFrame
     df = pd.DataFrame({
         'age': ages,
         'job': jobs,
@@ -134,52 +68,46 @@ def generate_sample_data(n_samples=5000):
         'loan': loan_status,
         'duration': durations
     })
-    
     return df
 
-# Load and preprocess data with enhanced features
+
 @st.cache_data
 def load_data():
-    """Load data with fallback to generated sample data"""
+    """Load data with fallback to generated sample data."""
     with st.spinner('Loading and processing data...'):
         try:
-            # Try to load the actual data file
             df = pd.read_excel('cleaned_bank_data_copy.xlsx')
-            st.success(" Loaded data from Excel file")
+            st.success("Loaded data from Excel file")
         except FileNotFoundError:
-            # Generate sample data if file not found
             df = generate_sample_data(5000)
-            st.info(" Using generated sample data (original file not found)")
+            st.info("Using generated sample data (original file not found)")
         except Exception as e:
-            # Fallback to sample data for any other error
             df = generate_sample_data(5000)
-            st.warning(f" Error loading file: {str(e)}. Using sample data instead.")
+            st.warning(f"Error loading file: {str(e)}. Using sample data instead.")
         
-        # Enhanced data cleaning
+        # Data cleaning
         df = df.replace('unknown', np.nan)
         df = df.drop_duplicates()
         
-        # Handle negative values more robustly
+        # Ensure non‑negative numeric values
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         for col in numeric_cols:
             df[col] = df[col].apply(lambda x: max(x, 0) if pd.notna(x) else x)
         
-        # Create more detailed age groups
+        # Derived features
         bins = [0, 18, 25, 35, 45, 55, 65, 75, 100]
         labels = ['0-18', '19-25', '26-35', '36-45', '46-55', '56-65', '66-75', '76-100']
         df['age_group'] = pd.cut(df['age'], bins=bins, labels=labels, right=False)
         
-        # Create balance categories
         balance_bins = [0, 1000, 5000, 10000, 25000, 50000, 100000, float('inf')]
         balance_labels = ['<$1K', '$1K-5K', '$5K-10K', '$10K-25K', '$25K-50K', '$50K-100K', '>$100K']
         df['balance_category'] = pd.cut(df['balance'], bins=balance_bins, labels=balance_labels)
         
-        # Create duration categories
         duration_bins = [0, 60, 120, 180, 240, 300, 600, float('inf')]
         duration_labels = ['<1min', '1-2min', '2-3min', '3-4min', '4-5min', '5-10min', '>10min']
         df['duration_category'] = pd.cut(df['duration'], bins=duration_bins, labels=duration_labels)
         
-        # Add synthetic date data for time series analysis
+        # Synthetic date/time features for trend analysis
         start_date = datetime.now() - timedelta(days=365*2)
         dates = [start_date + timedelta(days=np.random.randint(0, 365*2)) for _ in range(len(df))]
         df['date'] = pd.to_datetime(dates)
@@ -187,24 +115,28 @@ def load_data():
         df['quarter'] = df['date'].dt.to_period('Q').astype(str)
         df['month_name'] = df['date'].dt.month_name()
         
-        # Add a synthetic churn risk score
+        # Synthetic churn risk
         df['churn_risk'] = np.random.choice(['Low', 'Medium', 'High'], size=len(df), p=[0.7, 0.2, 0.1])
         
     return df
 
-# Load the data
+
+# ----
+# Load data
+# ----
 df = load_data()
 
-# Set style for all plots
+# Set base style for static plots (not critical with Plotly, but kept for seaborn)
 sns.set_style("whitegrid")
 plt.style.use('default')
 
-# Enhanced sidebar with collapsible sections
+# ----
+# Sidebar filters
+# ----
 with st.sidebar:
-    st.header(" Advanced Filters")
+    st.header("Filters")
     
-    # Reset filters button
-    if st.button(" Reset All Filters", help="Reset all filters to default values"):
+    if st.button("Reset All Filters", help="Reset all filters to default values"):
         st.rerun()
     
     with st.expander("Demographic Filters", expanded=True):
@@ -218,15 +150,15 @@ with st.sidebar:
         
         job_filter = st.multiselect(
             "Select Job Types:",
-            options=sorted(df['job'].unique()),
-            default=sorted(df['job'].unique()),
+            options=sorted(df['job'].dropna().unique()),
+            default=sorted(df['job'].dropna().unique()),
             help="Filter by customer occupation"
         )
         
         marital_filter = st.multiselect(
             "Select Marital Status:",
-            options=sorted(df['marital'].unique()),
-            default=sorted(df['marital'].unique()),
+            options=sorted(df['marital'].dropna().unique()),
+            default=sorted(df['marital'].dropna().unique()),
             help="Filter by marital status"
         )
         
@@ -249,8 +181,8 @@ with st.sidebar:
         
         loan_filter = st.multiselect(
             "Select Loan Status:",
-            options=sorted(df['loan'].unique()),
-            default=sorted(df['loan'].unique()),
+            options=sorted(df['loan'].dropna().unique()),
+            default=sorted(df['loan'].dropna().unique()),
             help="Filter by loan status"
         )
     
@@ -270,7 +202,7 @@ with st.sidebar:
             max_value=len(df),
             value=min(5000, len(df)),
             step=100,
-            help="Reduce sample size for better performance with large datasets"
+            help="Reduce sample size for better performance"
         )
         
         show_outliers = st.checkbox(
@@ -286,7 +218,9 @@ with st.sidebar:
             help="Change the color scheme for visualizations"
         )
 
-# Apply all filters
+# ----
+# Apply filters
+# ----
 try:
     filtered_df = df[
         (df['age'].between(age_range[0], age_range[1])) &
@@ -298,7 +232,6 @@ try:
         (df['loan'].isin(loan_filter))
     ].copy()
     
-    # Take a sample if needed
     if sample_size < len(filtered_df):
         filtered_df = filtered_df.sample(sample_size, random_state=42)
         
@@ -306,77 +239,47 @@ except Exception as e:
     st.error(f"Error applying filters: {str(e)}")
     filtered_df = df.copy()
 
-# Main content with enhanced layout
-st.title(" Advanced Bank Customer Analytics Dashboard")
+# ----
+# Main content
+# ----
+st.title("Bank Customer Analytics Dashboard")
 st.markdown(f"""
-    Interactive dashboard for comprehensive analysis of bank customer data with advanced features.
-    **Currently showing {len(filtered_df):,} customers** out of {len(df):,} total customers.
-    Use the filters in the sidebar to customize your view.
+    Interactive dashboard for comprehensive analysis of bank customer data.
+    **Currently showing {len(filtered_df):,} customers** out of {len(df):,} total.
+    Use the filters in the sidebar to customise your view.
 """)
 
-# Enhanced summary cards with custom styling
-st.markdown("###  Key Performance Indicators")
+# ----
+# Key Performance Indicators (using native st.metric, no custom CSS)
+# ----
 if len(filtered_df) > 0:
+    st.subheader("Key Performance Indicators")
     cols = st.columns(4)
     
-    with cols[0]:
-        total_customers = len(filtered_df)
-        pct_of_total = (total_customers / len(df)) * 100
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title">Total Customers</div>
-                <div class="metric-value">{total_customers:,}</div>
-                <div class="metric-change">
-                    {pct_of_total:.1f}% of total dataset
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    with cols[1]:
-        avg_balance = filtered_df['balance'].mean()
-        median_balance = filtered_df['balance'].median()
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title">Average Balance</div>
-                <div class="metric-value">${avg_balance:,.0f}</div>
-                <div class="metric-change">
-                    Median: ${median_balance:,.0f}
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    with cols[2]:
-        loan_rate = (len(filtered_df[filtered_df['loan'] == 'yes']) / len(filtered_df)) * 100
-        total_loan_rate = (len(df[df['loan'] == 'yes']) / len(df)) * 100
-        rate_diff = loan_rate - total_loan_rate
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title">Loan Take-up Rate</div>
-                <div class="metric-value">{loan_rate:.1f}%</div>
-                <div class="metric-change {'negative' if rate_diff < 0 else ''}">
-                    {abs(rate_diff):.1f}% {'below' if rate_diff < 0 else 'above'} overall
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    with cols[3]:
-        avg_duration = filtered_df['duration'].mean()
-        overall_duration = df['duration'].mean()
-        duration_diff = avg_duration - overall_duration
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title">Avg Call Duration</div>
-                <div class="metric-value">{avg_duration:.0f} sec</div>
-                <div class="metric-change {'negative' if duration_diff < 0 else ''}">
-                    {abs(duration_diff):.0f} sec {'below' if duration_diff < 0 else 'above'} overall
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+    total_customers = len(filtered_df)
+    pct_of_total = (total_customers / len(df)) * 100
+    cols[0].metric("Total Customers", f"{total_customers:,}", f"{pct_of_total:.1f}% of total")
+    
+    avg_balance = filtered_df['balance'].mean()
+    median_balance = filtered_df['balance'].median()
+    cols[1].metric("Average Balance", f"${avg_balance:,.0f}", f"Median: ${median_balance:,.0f}")
+    
+    loan_rate = (len(filtered_df[filtered_df['loan'] == 'yes']) / len(filtered_df)) * 100
+    total_loan_rate = (len(df[df['loan'] == 'yes']) / len(df)) * 100
+    rate_diff = loan_rate - total_loan_rate
+    cols[2].metric("Loan Take-up Rate", f"{loan_rate:.1f}%", f"{rate_diff:+.1f}% vs overall")
+    
+    avg_duration = filtered_df['duration'].mean()
+    overall_duration = df['duration'].mean()
+    duration_diff = avg_duration - overall_duration
+    cols[3].metric("Avg Call Duration", f"{avg_duration:.0f} sec", f"{duration_diff:+.0f} sec vs overall")
 else:
     st.warning("No data matches the current filters. Please adjust your filter settings.")
 
-# Enhanced download options
-with st.sidebar.expander(" Data Export", expanded=False):
+# ----
+# Export section (sidebar)
+# ----
+with st.sidebar.expander("Data Export", expanded=False):
     st.markdown("**Export Filtered Data**")
     
     export_format = st.radio(
@@ -404,7 +307,7 @@ with st.sidebar.expander(" Data Export", expanded=False):
             ext = 'json'
         
         st.download_button(
-            label=f" Download as {export_format}",
+            label=f"Download as {export_format}",
             data=data,
             file_name=f'filtered_bank_customers_{datetime.now().strftime("%Y%m%d_%H%M")}.{ext}',
             mime=mime,
@@ -413,16 +316,24 @@ with st.sidebar.expander(" Data Export", expanded=False):
     else:
         st.info("No data to export. Adjust filters to include data.")
 
-# Create enhanced tabs with more options
+# ----
+# Tabs – no emojis
+# ----
 if len(filtered_df) > 0:
+    # Use the selected color palette throughout
+    plotly_palette = getattr(px.colors.qualitative, color_palette)
+    
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "👥 Demographics", 
-        "💰 Financial Analysis", 
-        "📞 Engagement",
-        "📈 Trends",
-        "🔬 Advanced Analytics"
+        "Demographics", 
+        "Financial Analysis", 
+        "Engagement",
+        "Trends",
+        "Advanced Analytics"
     ])
 
+    # 
+    # Tab 1: Demographics
+    # 
     with tab1:
         st.header("Customer Demographics Analysis")
         
@@ -441,7 +352,7 @@ if len(filtered_df) > 0:
                 color='Job',
                 text='Count',
                 title='Customer Distribution by Job Type',
-                color_discrete_sequence=px.colors.qualitative.Set2
+                color_discrete_sequence=plotly_palette
             )
             fig1.update_layout(showlegend=False, height=400)
             fig1.update_traces(textposition='outside')
@@ -454,12 +365,11 @@ if len(filtered_df) > 0:
                 x='age',
                 nbins=20,
                 title='Age Distribution',
-                color_discrete_sequence=['#2E8B57']
+                color_discrete_sequence=[plotly_palette[0]]
             )
             fig2.update_layout(height=400)
             st.plotly_chart(fig2, use_container_width=True)
         
-        # Demographics breakdown
         st.subheader("Demographic Breakdown")
         col1, col2, col3 = st.columns(3)
         
@@ -470,7 +380,8 @@ if len(filtered_df) > 0:
                 values=marital_dist.values,
                 names=marital_dist.index,
                 title='Marital Status Distribution',
-                hole=0.3
+                hole=0.3,
+                color_discrete_sequence=plotly_palette
             )
             fig3.update_layout(height=300)
             st.plotly_chart(fig3, use_container_width=True)
@@ -482,7 +393,8 @@ if len(filtered_df) > 0:
                 values=education_dist.values,
                 names=education_dist.index,
                 title='Education Distribution',
-                hole=0.3
+                hole=0.3,
+                color_discrete_sequence=plotly_palette
             )
             fig4.update_layout(height=300)
             st.plotly_chart(fig4, use_container_width=True)
@@ -494,11 +406,15 @@ if len(filtered_df) > 0:
                 values=age_group_dist.values,
                 names=age_group_dist.index,
                 title='Age Groups Distribution',
-                hole=0.3
+                hole=0.3,
+                color_discrete_sequence=plotly_palette
             )
             fig5.update_layout(height=300)
             st.plotly_chart(fig5, use_container_width=True)
 
+    # 
+    # Tab 2: Financial Analysis
+    # 
     with tab2:
         st.header("Financial Analysis")
         
@@ -511,7 +427,8 @@ if len(filtered_df) > 0:
                 x='balance',
                 nbins=30,
                 title='Account Balance Distribution',
-                marginal='box'
+                marginal='box',
+                color_discrete_sequence=[plotly_palette[0]]
             )
             st.plotly_chart(fig6, use_container_width=True)
         
@@ -522,12 +439,12 @@ if len(filtered_df) > 0:
                 x='job',
                 y='balance',
                 title='Balance Distribution by Job',
-                points='outliers' if show_outliers else False
+                points='outliers' if show_outliers else False,
+                color_discrete_sequence=plotly_palette
             )
             fig7.update_xaxes(tickangle=45)
             st.plotly_chart(fig7, use_container_width=True)
         
-        # Balance categories
         st.subheader("Balance Categories Analysis")
         col1, col2 = st.columns(2)
         
@@ -537,23 +454,23 @@ if len(filtered_df) > 0:
                 x=balance_cat_dist.index,
                 y=balance_cat_dist.values,
                 title='Distribution by Balance Category',
-                text=balance_cat_dist.values
+                text=balance_cat_dist.values,
+                color_discrete_sequence=plotly_palette
             )
             fig8.update_traces(textposition='outside')
             st.plotly_chart(fig8, use_container_width=True)
         
         with col2:
-            # Loan vs Balance analysis
             fig9 = px.box(
                 filtered_df,
                 x='loan',
                 y='balance',
                 title='Balance Distribution by Loan Status',
-                points='outliers' if show_outliers else False
+                points='outliers' if show_outliers else False,
+                color_discrete_sequence=plotly_palette
             )
             st.plotly_chart(fig9, use_container_width=True)
         
-        # Financial summary statistics
         st.subheader("Financial Summary Statistics")
         col1, col2 = st.columns(2)
         
@@ -572,6 +489,9 @@ if len(filtered_df) > 0:
             balance_by_demo = filtered_df.groupby(demographic_choice)['balance'].agg(['mean', 'median', 'std', 'count'])
             st.dataframe(balance_by_demo.style.format({'mean': '{:,.0f}', 'median': '{:,.0f}', 'std': '{:,.0f}'}))
 
+    # 
+    # Tab 3: Engagement
+    # 
     with tab3:
         st.header("Customer Engagement Analysis")
         
@@ -584,7 +504,8 @@ if len(filtered_df) > 0:
                 x='duration',
                 nbins=25,
                 title='Call Duration Distribution',
-                marginal='box'
+                marginal='box',
+                color_discrete_sequence=[plotly_palette[0]]
             )
             st.plotly_chart(fig10, use_container_width=True)
         
@@ -595,11 +516,11 @@ if len(filtered_df) > 0:
                 x='loan',
                 y='duration',
                 title='Call Duration by Loan Status',
-                points='outliers' if show_outliers else False
+                points='outliers' if show_outliers else False,
+                color_discrete_sequence=plotly_palette
             )
             st.plotly_chart(fig11, use_container_width=True)
         
-        # Duration categories
         st.subheader("Call Duration Categories")
         col1, col2 = st.columns(2)
         
@@ -609,29 +530,28 @@ if len(filtered_df) > 0:
                 values=duration_cat_dist.values,
                 names=duration_cat_dist.index,
                 title='Call Duration Categories',
-                hole=0.3
+                hole=0.3,
+                color_discrete_sequence=plotly_palette
             )
             st.plotly_chart(fig12, use_container_width=True)
         
         with col2:
-            # Loan status distribution
             loan_dist = filtered_df['loan'].value_counts()
             fig13 = px.pie(
                 values=loan_dist.values,
                 names=loan_dist.index,
                 title='Loan Status Distribution',
                 hole=0.3,
-                color_discrete_map={'yes': '#FF6B6B', 'no': '#4ECDC4'}
+                color_discrete_sequence=plotly_palette
             )
             st.plotly_chart(fig13, use_container_width=True)
         
-        # Engagement metrics
         st.subheader("Engagement Metrics Summary")
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            avg_duration = filtered_df['duration'].mean()
-            st.metric("Average Call Duration", f"{avg_duration:.0f} seconds")
+            avg_dur = filtered_df['duration'].mean()
+            st.metric("Average Call Duration", f"{avg_dur:.0f} seconds")
             
         with col2:
             engagement_rate = len(filtered_df[filtered_df['duration'] > 180]) / len(filtered_df) * 100
@@ -639,14 +559,16 @@ if len(filtered_df) > 0:
                      help="Percentage of calls longer than 3 minutes")
         
         with col3:
-            callback_potential = len(filtered_df[filtered_df['duration'] < 60]) / len(filtered_df) * 100
-            st.metric("Quick Call Rate", f"{callback_potential:.1f}%",
+            quick_call_rate = len(filtered_df[filtered_df['duration'] < 60]) / len(filtered_df) * 100
+            st.metric("Quick Call Rate", f"{quick_call_rate:.1f}%",
                      help="Percentage of calls shorter than 1 minute")
 
+    # 
+    # Tab 4: Trends
+    # 
     with tab4:
         st.header("Time Trends Analysis")
         
-        # Monthly trends
         st.subheader("Monthly Customer Distribution")
         monthly_dist = filtered_df['month_name'].value_counts().reindex([
             'January', 'February', 'March', 'April', 'May', 'June',
@@ -657,12 +579,12 @@ if len(filtered_df) > 0:
             x=monthly_dist.index,
             y=monthly_dist.values,
             title='Customer Count by Month',
-            markers=True
+            markers=True,
+            color_discrete_sequence=[plotly_palette[0]]
         )
         fig14.update_xaxes(tickangle=45)
         st.plotly_chart(fig14, use_container_width=True)
         
-        # Quarterly analysis
         col1, col2 = st.columns(2)
         
         with col1:
@@ -672,7 +594,8 @@ if len(filtered_df) > 0:
                 quarterly_balance,
                 x='quarter',
                 y='balance',
-                title='Average Balance by Quarter'
+                title='Average Balance by Quarter',
+                color_discrete_sequence=plotly_palette
             )
             st.plotly_chart(fig15, use_container_width=True)
         
@@ -683,14 +606,17 @@ if len(filtered_df) > 0:
                 quarterly_duration,
                 x='quarter',
                 y='duration',
-                title='Average Call Duration by Quarter'
+                title='Average Call Duration by Quarter',
+                color_discrete_sequence=plotly_palette
             )
             st.plotly_chart(fig16, use_container_width=True)
 
+    # 
+    # Tab 5: Advanced Analytics
+    # 
     with tab5:
         st.header("Advanced Analytics")
         
-        # Correlation analysis
         st.subheader("Correlation Matrix")
         numeric_cols = ['age', 'balance', 'duration']
         corr_matrix = filtered_df[numeric_cols].corr()
@@ -706,7 +632,6 @@ if len(filtered_df) > 0:
         )
         st.plotly_chart(fig17, use_container_width=True)
         
-        # Scatter plot analysis
         st.subheader("Feature Relationships")
         col1, col2 = st.columns(2)
         
@@ -717,7 +642,8 @@ if len(filtered_df) > 0:
                 y='balance',
                 color='loan',
                 title='Age vs Balance (colored by Loan Status)',
-                opacity=0.6
+                opacity=0.6,
+                color_discrete_sequence=plotly_palette
             )
             st.plotly_chart(fig18, use_container_width=True)
         
@@ -728,11 +654,11 @@ if len(filtered_df) > 0:
                 y='balance',
                 color='job',
                 title='Call Duration vs Balance (colored by Job)',
-                opacity=0.6
+                opacity=0.6,
+                color_discrete_sequence=plotly_palette
             )
             st.plotly_chart(fig19, use_container_width=True)
         
-        # Statistical insights
         st.subheader("Statistical Insights")
         col1, col2 = st.columns(2)
         
@@ -741,11 +667,9 @@ if len(filtered_df) > 0:
             st.write(f"- Total customers analyzed: {len(filtered_df):,}")
             st.write(f"- Average age: {filtered_df['age'].mean():.1f} years")
             st.write(f"- Balance std deviation: ${filtered_df['balance'].std():,.0f}")
-            st.write(f"- Duration range: {filtered_df['duration'].min()}-{filtered_df['duration'].max()} seconds")
-            
-            # Correlation insights
+            st.write(f"- Duration range: {filtered_df['duration'].min()} – {filtered_df['duration'].max()} seconds")
             age_balance_corr = filtered_df['age'].corr(filtered_df['balance'])
-            st.write(f"- Age-Balance correlation: {age_balance_corr:.3f}")
+            st.write(f"- Age–Balance correlation: {age_balance_corr:.3f}")
             
         with col2:
             st.markdown("**Data Quality Metrics**")
@@ -756,4 +680,7 @@ if len(filtered_df) > 0:
                     if missing > 0:
                         st.write(f"- {col}: {missing} ({missing/len(filtered_df)*100:.1f}%)")
             else:
-                st.write("✅")
+                st.write("No missing data in the current selection.")
+
+else:
+    st.info("Adjust the filters to see analytics and visualizations.")
