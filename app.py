@@ -145,15 +145,15 @@ def load_data():
         try:
             # Try to load the actual data file
             df = pd.read_excel('cleaned_bank_data_copy.xlsx')
-            st.success("✅ Loaded data from Excel file")
+            st.success(" Loaded data from Excel file")
         except FileNotFoundError:
             # Generate sample data if file not found
             df = generate_sample_data(5000)
-            st.info("ℹ️ Using generated sample data (original file not found)")
+            st.info(" Using generated sample data (original file not found)")
         except Exception as e:
             # Fallback to sample data for any other error
             df = generate_sample_data(5000)
-            st.warning(f"⚠️ Error loading file: {str(e)}. Using sample data instead.")
+            st.warning(f" Error loading file: {str(e)}. Using sample data instead.")
         
         # Enhanced data cleaning
         df = df.replace('unknown', np.nan)
@@ -201,10 +201,10 @@ plt.style.use('default')
 
 # Enhanced sidebar with collapsible sections
 with st.sidebar:
-    st.header("🔍 Advanced Filters")
+    st.header(" Advanced Filters")
     
     # Reset filters button
-    if st.button("🔄 Reset All Filters", help="Reset all filters to default values"):
+    if st.button(" Reset All Filters", help="Reset all filters to default values"):
         st.rerun()
     
     with st.expander("Demographic Filters", expanded=True):
@@ -307,7 +307,7 @@ except Exception as e:
     filtered_df = df.copy()
 
 # Main content with enhanced layout
-st.title("🏦 Advanced Bank Customer Analytics Dashboard")
+st.title(" Advanced Bank Customer Analytics Dashboard")
 st.markdown(f"""
     Interactive dashboard for comprehensive analysis of bank customer data with advanced features.
     **Currently showing {len(filtered_df):,} customers** out of {len(df):,} total customers.
@@ -315,7 +315,7 @@ st.markdown(f"""
 """)
 
 # Enhanced summary cards with custom styling
-st.markdown("### 📊 Key Performance Indicators")
+st.markdown("###  Key Performance Indicators")
 if len(filtered_df) > 0:
     cols = st.columns(4)
     
@@ -376,7 +376,7 @@ else:
     st.warning("No data matches the current filters. Please adjust your filter settings.")
 
 # Enhanced download options
-with st.sidebar.expander("📥 Data Export", expanded=False):
+with st.sidebar.expander(" Data Export", expanded=False):
     st.markdown("**Export Filtered Data**")
     
     export_format = st.radio(
@@ -404,7 +404,7 @@ with st.sidebar.expander("📥 Data Export", expanded=False):
             ext = 'json'
         
         st.download_button(
-            label=f"📥 Download as {export_format}",
+            label=f" Download as {export_format}",
             data=data,
             file_name=f'filtered_bank_customers_{datetime.now().strftime("%Y%m%d_%H%M")}.{ext}',
             mime=mime,
